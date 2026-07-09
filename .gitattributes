@@ -1,0 +1,9 @@
+# Normalise les fins de ligne : LF dans le dépôt, quel que soit l'OS.
+# Évite les avertissements CRLF sous Windows et les diffs parasites en équipe.
+* text=auto eol=lf
+
+# Fichiers binaires (pas de conversion)
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
