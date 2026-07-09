@@ -1,0 +1,117 @@
+// Schéma Prisma — transpose le MLD/MPD (activité 2) vers PostgreSQL.
+// Voir docs/ARCHITECTURE.md §3 pour la correspondance table par table.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// users
+model User {
+  id             Int             @id @default(autoincrement())
+  pseudo         String
+  email          String          @unique
+  password       String
+  createdAt      DateTime        @default(now()) @map("created_at")
+
+  decks          Deck[]
+  participations Participation[]
+  turns          Turn[]
+
+  @@map("users")
+}
+
+// cards
+model Card {
+  id          Int        @id @default(autoincrement())
+  name        String
+  type        String?
+  grade       Int        @default(0)
+  power       Int        @default(0)
+  critical    Int        @default(1)
+  description String?
+
+  effects     Effect[]
+  deckCards   DeckCard[]
+
+  @@map("cards")
+}
+
+// effects (extension future : logique d'effet non implémentée dans le TCG lite)
+model Effect {
+  id          Int     @id @default(autoincrement())
+  description String
+  cardId      Int     @map("card_id")
+  card        Card    @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@map("effects")
+}
+
+// decks
+model Deck {
+  id        Int        @id @default(autoincrement())
+  name      String
+  createdAt DateTime   @default(now()) @map("created_at")
+  userId    Int        @map("user_id")
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  deckCards DeckCard[]
+
+  @@map("decks")
+}
+
+// deck_cards (association deck <-> carte)
+model DeckCard {
+  deckId   Int  @map("deck_id")
+  cardId   Int  @map("card_id")
+  quantity Int  @default(1)
+
+  deck     Deck @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  card     Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@id([deckId, cardId])
+  @@map("deck_cards")
+}
+
+// games
+model Game {
+  id       Int      @id @default(autoincrement())
+  gameDate DateTime @default(now()) @map("game_date")
+  status   String   @default("pending")
+
+  participations Participation[]
+  turns          Turn[]
+
+  @@map("games")
+}
+
+// participations (joueur <-> partie)
+model Participation {
+  userId     Int    @map("user_id")
+  gameId     Int    @map("game_id")
+  role       String @default("player")
+  lifePoints Int    @default(15) @map("life_points")
+
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game       Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@id([userId, gameId])
+  @@map("participations")
+}
+
+// turns (journalisation des tours)
+model Turn {
+  id         Int    @id @default(autoincrement())
+  turnNumber Int    @map("turn_number")
+  gameId     Int    @map("game_id")
+  userId     Int?   @map("user_id")
+
+  game       Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user       User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("turns")
+}

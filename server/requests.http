@@ -1,0 +1,62 @@
+### Tests des routes API (extension VSCode "REST Client" ou "HTTP Client")
+### Base URL
+@base = http://localhost:4000/api
+@token = COLLE_ICI_LE_TOKEN_RENVOYE_PAR_LOGIN
+
+### Healthcheck
+GET {{base}}/health
+
+### Register
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "pseudo": "Charlie",
+  "email": "charlie@tcg.dev",
+  "password": "password123"
+}
+
+### Login (récupère le token, puis colle-le dans @token ci-dessus)
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "alice@tcg.dev",
+  "password": "password123"
+}
+
+### Profil courant (protégé)
+GET {{base}}/auth/me
+Authorization: Bearer {{token}}
+
+### Liste des cartes (publique, paginée)
+GET {{base}}/cards?page=1&limit=20
+
+### Recherche de cartes
+GET {{base}}/cards?search=dragon&grade=3
+
+### Détail d'une carte
+GET {{base}}/cards/1
+
+### Mes decks (protégé)
+GET {{base}}/decks
+Authorization: Bearer {{token}}
+
+### Créer un deck (protégé)
+POST {{base}}/decks
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Mon deck agressif",
+  "cards": [
+    { "cardId": 1, "quantity": 4 },
+    { "cardId": 3, "quantity": 4 },
+    { "cardId": 9, "quantity": 4 },
+    { "cardId": 13, "quantity": 4 }
+  ]
+}
+
+### Mon historique de parties (protégé)
+GET {{base}}/games
+Authorization: Bearer {{token}}
