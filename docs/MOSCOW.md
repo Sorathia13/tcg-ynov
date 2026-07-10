@@ -106,32 +106,9 @@ Moteur de jeu ──────────┘            ├──> Partie tem
 | 2 | Instrumentation playtest (S1) : logs durée/tours + compteurs | ½ j | ✅ fait |
 | 3 | Plan de playtest + grille d'observation (docs/PLAYTEST.md) | ½ j | ✅ fait |
 | 4 | Passe de robustesse PvP (S2) + écran de fin (S3) | 1 j | à faire |
-| 5 | Support de démo (docs/DEMO.md) + répétition | ½ j | à faire |
 
 **Hypothèse** : les MUST étant tous livrés, l'itération avant S10 se concentre sur la
-**préparation du playtest** (mesure, robustesse) et la **présentation**, pas sur de nouvelles
+**préparation du playtest** (mesure, robustesse), pas sur de nouvelles
 fonctionnalités de jeu — cohérent avec l'objectif « projet stable et démontrable ».
 
----
-
-## 5. Board GitHub Projects (contenu à créer)
-
-À reporter dans un board **GitHub Projects** (colonnes : `Backlog` · `À faire` · `En cours` · `Fait`).
-Chaque item ci-dessous = une carte (préfixe = priorité MoSCoW) :
-
-- **[MUST] Boucle de jeu complète** → _Fait_
-- **[MUST] Partie vs IA end-to-end** → _Fait_
-- **[MUST] Auth + decks** → _Fait_
-- **[MUST] Tests moteur + CI** → _Fait_
-- **[MUST] UI jouable** → _Fait_
-- **[SHOULD] Instrumentation playtest (logs/compteurs)** → _Fait_
-- **[SHOULD] Robustesse PvP** → _À faire_
-- **[SHOULD] Écran de fin enrichi** → _À faire_
-- **[SHOULD] Reconnexion / abandon propre** → _En cours_ (abandon fait)
-- **[COULD] Effets de cartes** → _Backlog_
-- **[COULD] Génération de cartes LLM** → _Backlog_
-- **[COULD] Classement / ELO** → _Backlog_
-- **[WON'T] Règles Vanguard complètes** → _Backlog (hors périmètre)_
-
-> Astuce : lie chaque carte « À faire »/« En cours » à une **issue** GitHub pour cocher la preuve
-> « issues/PR suivies » de la grille.
+> Le suivi opérationnel de ces tâches est tenu sur le board **GitHub Projects** du dépôt.
