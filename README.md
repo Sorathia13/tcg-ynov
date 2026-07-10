@@ -192,6 +192,14 @@ Namespace Socket.io par défaut. Événements principaux :
 - `game:state` (serveur → client) → état à jour de la partie
 - `game:over` → fin de partie
 
+## Tests & CI
+
+- **Tests unitaires** du moteur de jeu (règles déterministes) avec **Vitest** :
+  `cd server && npm test` (12 tests couvrant pile ou face, progression de grade,
+  déploiement/remplacement, combat, conditions de victoire, masquage de la main adverse).
+- **Intégration continue** GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) :
+  à chaque push / PR sur `main`, exécution des tests back-end + vérification du build front-end.
+
 ## Scripts utiles
 
 ```bash
@@ -201,6 +209,8 @@ npm run start        # API en production
 npm run db:migrate   # migrations Prisma
 npm run db:seed      # données mocks
 npm run db:studio    # Prisma Studio (exploration BDD)
+npm test             # tests du moteur de jeu (Vitest)
+npm run test:watch   # tests en mode watch
 
 # client/
 npm run dev          # front en watch
@@ -216,4 +226,4 @@ Le cœur du jeu est volontairement extensible :
 - Combat **unité contre unité** (rear-guards)
 - IA plus fine (mémoire de partie, difficulté réglable, prompt few-shot)
 - Classement / ELO, spectateur, rejouer une partie (les tours sont journalisés en BDD)
-- Tests automatisés (Vitest / Jest) et CI GitHub Actions
+- Étendre la couverture de tests (services REST, intégration Socket.io)
