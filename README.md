@@ -27,7 +27,7 @@ Projet fil rouge — M2 INFO, _Coordination Front & Back_ (Ynov).
 
 | Fonctionnalité (dossier d'intention) | État |
 |---|---|
-| Authentification utilisateur (JWT) | ✅ |
+| Authentification utilisateur (JWT) + gestion des rôles (`user`/`admin`) | ✅ |
 | Consultation des cartes | ✅ |
 | Création et gestion de decks | ✅ |
 | Matchmaking | ✅ (file d'attente PvP + partie vs IA immédiate) |
@@ -72,6 +72,18 @@ tcg-ynov/
     └── src/{api,context,hooks,pages,components}
 ```
 
+## Documentation
+
+| Document | Contenu |
+|---|---|
+| [docs/CADRAGE.md](docs/CADRAGE.md) | Document de cadrage : objectifs, périmètre, stack, **spécification de l'IA** |
+| [docs/MCD-MLD.md](docs/MCD-MLD.md) | Modèle de données : MCD, MLD, MPD (PostgreSQL) + correspondance ORM |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture technique détaillée (couches, flux, règles) |
+| [docs/WIREFRAMES.md](docs/WIREFRAMES.md) | Wireframes des écrans clés |
+| [docs/MOSCOW.md](docs/MOSCOW.md) | État des lieux & priorisation MoSCoW |
+| [docs/PLAYTEST.md](docs/PLAYTEST.md) · [PLAYTEST-RESULTS.md](docs/PLAYTEST-RESULTS.md) | Plan de playtest & résultats |
+| [CHANGELOG.md](CHANGELOG.md) | Journal des versions |
+
 ## Prérequis
 
 - **Node.js ≥ 18** (testé sur 22) et npm
@@ -101,10 +113,10 @@ npm run dev                   # API sur http://localhost:4000
 
 Comptes de test créés par le seed :
 
-| Email | Mot de passe |
-|---|---|
-| `alice@tcg.dev` | `password123` |
-| `bob@tcg.dev` | `password123` |
+| Email | Mot de passe | Rôle |
+|---|---|---|
+| `alice@tcg.dev` | `password123` | `admin` |
+| `bob@tcg.dev` | `password123` | `user` |
 
 ### 3. Front-end
 
@@ -172,6 +184,7 @@ Base : `http://localhost:4000/api`
 | GET | `/auth/me` | ✅ | Profil courant |
 | GET | `/cards` | — | Liste des cartes (pagination `?page&limit`) |
 | GET | `/cards/:id` | — | Détail d'une carte (+ effets) |
+| POST | `/cards` | ✅ **admin** | Créer une carte (réservé au rôle `admin`) |
 | GET | `/decks` | ✅ | Mes decks |
 | POST | `/decks` | ✅ | Créer un deck |
 | GET | `/decks/:id` | ✅ | Détail d'un deck |
@@ -216,6 +229,27 @@ npm run test:watch   # tests en mode watch
 npm run dev          # front en watch
 npm run build        # build de prod
 ```
+
+## Limites connues & analyse critique
+
+Recul honnête sur l'état du projet :
+
+- **Périmètre de règles volontairement réduit** : c'est un TCG « lite ». Les mécaniques avancées de
+  Vanguard (rear-guards, drive/trigger checks, soul) et le combat unité-contre-unité ne sont pas
+  implémentés — choix assumé pour privilégier la stabilité et la démontrabilité.
+- **Effets de cartes non fonctionnels** : la table `effects` est modélisée mais sa logique n'est pas
+  branchée sur le moteur (les effets sont purement descriptifs pour l'instant).
+- **PvP moins éprouvé que le mode IA** : le matchmaking humain-vs-humain fonctionne mais a été moins
+  testé ; pas de reconnexion en cours de partie (une déconnexion met fin à la partie côté adversaire).
+- **État des parties en mémoire** : les parties en cours vivent dans le process serveur ; un
+  redémarrage les perd (seul le cycle de vie est persisté en BDD). Suffisant pour une exécution locale.
+- **IA dépendante d'Ollama** : nécessite Ollama lancé localement ; un repli heuristique évite le
+  blocage mais l'IA est alors moins « intelligente ». La latence du LLM ajoute un léger délai par tour.
+- **Rôles minimalistes** : deux rôles (`user`/`admin`) ; l'admin sert à démontrer la protection par
+  rôle (création de carte). Pas d'interface d'administration dédiée côté front.
+
+Ce qui a bien fonctionné : le **moteur pur et déterministe** (facile à tester et à faire rejouer), le
+**serveur autoritaire** (robustesse anti-triche), et l'**intégration IA locale** réellement opérationnelle.
 
 ## Pistes d'évolution
 
