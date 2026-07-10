@@ -221,24 +221,29 @@ export async function advanceAI(gameId, onStep) {
       const view = engine.publicView(state, side);
       const plan = await ai.decideTurn(view);
       tally(plan.source);
-      // Déploiement (filtré/validé par le moteur, on ignore les coups illégaux).
-      const deployable = new Set(view.legal.deployable?.map((c) => c.iid));
-      const toDeploy = (plan.deploy || []).filter((iid) => deployable.has(iid))
-        .slice(0, engine.RULES.FIELD_SIZE - state.players[side].field.length);
-      if (toDeploy.length) {
-        try { engine.deploy(state, side, toDeploy); } catch { /* ignore illégal */ }
-      }
-      // Amélioration : si le champ est plein, l'IA remplace sa plus faible unité par une
-      // meilleure carte jouable de sa main (placement par-dessus).
-      let up = 0;
-      while (state.players[side].field.length >= engine.RULES.FIELD_SIZE && up++ < 3) {
-        const maxG = state.players[side].turnCount - 1;
-        const playable = state.players[side].hand.filter((c) => c.grade <= maxG);
-        if (!playable.length) break;
-        const best = playable.reduce((a, b) => (b.power > a.power ? b : a));
-        const weakest = state.players[side].field.reduce((a, b) => (b.power < a.power ? b : a));
-        if (best.power <= weakest.power) break; // aucune amélioration possible
-        try { engine.deploy(state, side, [best.iid], weakest.iid); } catch { break; }
+      // Tactique : si l'IA ne peut pas attaquer ce tour (1er tour du joueur qui commence),
+      // on ne déploie rien — inutile d'occuper des emplacements avec des unités qui ne
+      // peuvent pas attaquer et qu'il faudrait écraser au tour suivant pour monter en grade.
+      if (view.legal.canAttack) {
+        // Déploiement (filtré/validé par le moteur, on ignore les coups illégaux).
+        const deployable = new Set(view.legal.deployable?.map((c) => c.iid));
+        const toDeploy = (plan.deploy || []).filter((iid) => deployable.has(iid))
+          .slice(0, engine.RULES.FIELD_SIZE - state.players[side].field.length);
+        if (toDeploy.length) {
+          try { engine.deploy(state, side, toDeploy); } catch { /* ignore illégal */ }
+        }
+        // Amélioration : si le champ est plein, l'IA remplace sa plus faible unité par une
+        // meilleure carte jouable de sa main (placement par-dessus).
+        let up = 0;
+        while (state.players[side].field.length >= engine.RULES.FIELD_SIZE && up++ < 3) {
+          const maxG = state.players[side].turnCount - 1;
+          const playable = state.players[side].hand.filter((c) => c.grade <= maxG);
+          if (!playable.length) break;
+          const best = playable.reduce((a, b) => (b.power > a.power ? b : a));
+          const weakest = state.players[side].field.reduce((a, b) => (b.power < a.power ? b : a));
+          if (best.power <= weakest.power) break; // aucune amélioration possible
+          try { engine.deploy(state, side, [best.iid], weakest.iid); } catch { break; }
+        }
       }
       entry.aiPlan = { turn: state.turn, attacks: [...(plan.attacks || [])] };
       if (onStep) await onStep();

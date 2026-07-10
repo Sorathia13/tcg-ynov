@@ -130,8 +130,10 @@ export async function decideGuard(view) {
 function heuristicTurn(view) {
   const deployable = [...(view.legal.deployable || [])].sort((a, b) => b.power - a.power);
   const slots = FIELD_SIZE - view.you.field.length;
-  const deploy = deployable.slice(0, Math.max(0, slots)).map((c) => c.iid);
   const canAttack = view.legal.canAttack !== false;
+  // Si on ne peut pas attaquer ce tour (1er tour du joueur qui commence), ne pas déployer :
+  // on garde les emplacements libres pour des unités de grade supérieur au tour suivant.
+  const deploy = canAttack ? deployable.slice(0, Math.max(0, slots)).map((c) => c.iid) : [];
   const attacks = canAttack
     ? [...(view.legal.attackers || []).map((c) => c.iid), ...deploy] // les unités déployées attaquent aussi
     : [];
