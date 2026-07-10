@@ -3,8 +3,6 @@
 Jeu de cartes multijoueur au tour par tour, inspiré des mécaniques de _Cardfight!! Vanguard_
 (grade / power / critical / garde), avec un **adversaire IA piloté par un LLM local (Ollama)**.
 
-Projet fil rouge — M2 INFO, _Coordination Front & Back_ (Ynov).
-
 ---
 
 ## Sommaire
