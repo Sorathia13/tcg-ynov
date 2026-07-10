@@ -14,10 +14,13 @@ export function notFound(req, res, next) {
 }
 
 // Handler final : formate proprement toute erreur en JSON.
+// Sécurité : on n'expose jamais le détail interne d'une erreur 5xx au client
+// (ex. message d'erreur Prisma) — il est seulement journalisé côté serveur.
 export function errorHandler(err, req, res, _next) {
   const status = err.status || 500;
-  if (status >= 500) console.error('[ERROR]', err);
-  res.status(status).json({
-    error: err.message || 'Erreur serveur interne',
-  });
+  if (status >= 500) {
+    console.error('[ERROR]', err);
+    return res.status(status).json({ error: 'Erreur serveur interne' });
+  }
+  res.status(status).json({ error: err.message || 'Requête invalide' });
 }
