@@ -81,6 +81,7 @@ tcg-ynov/
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture technique détaillée (couches, flux, règles) |
 | [docs/WIREFRAMES.md](docs/WIREFRAMES.md) | Wireframes des écrans clés |
 | [docs/MOSCOW.md](docs/MOSCOW.md) | État des lieux & priorisation MoSCoW |
+| [docs/ANALYSE-CRITIQUE.md](docs/ANALYSE-CRITIQUE.md) | Analyse critique, feuille de route, consolidations (activité 10) |
 | [docs/PLAYTEST.md](docs/PLAYTEST.md) · [PLAYTEST-RESULTS.md](docs/PLAYTEST-RESULTS.md) | Plan de playtest & résultats |
 | [CHANGELOG.md](CHANGELOG.md) | Journal des versions |
 
