@@ -54,12 +54,11 @@ Client React ──HTTP REST──> API Express ──> Auth / Card / Deck / Gam
                                                           └──> AI service ──> Ollama (LLM) / repli heuristique
 ```
 
-Détails complets dans [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+L'architecture détaillée est décrite dans le dossier de projet (PDF des livrables d'activités).
 
 ```
 tcg-ynov/
 ├── docker-compose.yml        # PostgreSQL
-├── docs/ARCHITECTURE.md      # doc d'architecture technique
 ├── server/                   # API Express + Prisma + Socket.io + IA
 │   ├── prisma/schema.prisma  # modèle de données (= MLD/MPD)
 │   ├── prisma/seed.js        # données mocks (cartes, users, decks)
@@ -74,16 +73,11 @@ tcg-ynov/
 
 ## Documentation
 
-| Document | Contenu |
-|---|---|
-| [docs/CADRAGE.md](docs/CADRAGE.md) | Document de cadrage : objectifs, périmètre, stack, **spécification de l'IA** |
-| [docs/MCD-MLD.md](docs/MCD-MLD.md) | Modèle de données : MCD, MLD, MPD (PostgreSQL) + correspondance ORM |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture technique détaillée (couches, flux, règles) |
-| [docs/WIREFRAMES.md](docs/WIREFRAMES.md) | Wireframes des écrans clés |
-| [docs/MOSCOW.md](docs/MOSCOW.md) | État des lieux & priorisation MoSCoW |
-| [docs/ANALYSE-CRITIQUE.md](docs/ANALYSE-CRITIQUE.md) | Analyse critique, feuille de route, consolidations (activité 10) |
-| [docs/PLAYTEST.md](docs/PLAYTEST.md) · [PLAYTEST-RESULTS.md](docs/PLAYTEST-RESULTS.md) | Plan de playtest & résultats |
-| [CHANGELOG.md](CHANGELOG.md) | Journal des versions |
+La documentation rédigée du projet — **document de cadrage**, **MCD/MLD**, **architecture technique**,
+**wireframes**, **priorisation MoSCoW**, **plan et résultats de playtest** et **analyse critique** —
+constitue les livrables d'activités et est fournie sous forme d'un **dossier PDF** remis avec le projet.
+
+Dans le dépôt : ce `README.md` (installation, usage, API) et le [CHANGELOG.md](CHANGELOG.md).
 
 ## Prérequis
 
@@ -172,7 +166,7 @@ Version simplifiée et **déterministe** (idéale pour une démo fiable), fidèl
   - Sinon → attaque bloquée.
 - Le premier joueur à **0 PV** perd.
 
-Détails et pseudo-code : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Détails et pseudo-code : voir le dossier de projet (PDF).
 
 ## API REST
 

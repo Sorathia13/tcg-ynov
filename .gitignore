@@ -23,3 +23,7 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# Documents d'activité et dossier de rendu : fournis en PDF (Moodle), non versionnés
+docs/
+rendus-pdf/
