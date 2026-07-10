@@ -10,6 +10,20 @@ import * as ai from './ai.service.js';
 // gameId -> { state, sides, aiPlan }
 const games = new Map();
 
+// --- Verrou par partie -------------------------------------------------------
+// Sérialise toutes les mutations d'une même partie (action humaine + tour IA).
+// Indispensable car le tour de l'IA est asynchrone (attente Ollama + pacing) :
+// sans ce verrou, une action humaine reçue pendant le tour IA lancerait un second
+// traitement concurrent sur le même état → collisions.
+const locks = new Map(); // gameId -> Promise (queue)
+
+export function runExclusive(gameId, fn) {
+  const prev = locks.get(gameId) || Promise.resolve();
+  const next = prev.then(fn, fn); // exécute fn quel que soit le sort du précédent
+  locks.set(gameId, next.then(() => {}, () => {})); // la file survit aux erreurs
+  return next; // l'appelant récupère le vrai résultat/erreur de fn
+}
+
 // Identifiants de camp
 const SIDES = ['A', 'B'];
 
@@ -136,7 +150,7 @@ export async function applyHumanAction(gameId, side, action) {
 
   switch (action.type) {
     case 'deploy':
-      engine.deploy(state, side, action.iids || []);
+      engine.deploy(state, side, action.iids || [], action.replaceIid || null);
       break;
     case 'attack':
       engine.declareAttack(state, side, action.attackerIid);
@@ -205,6 +219,18 @@ export async function advanceAI(gameId, onStep) {
       if (toDeploy.length) {
         try { engine.deploy(state, side, toDeploy); } catch { /* ignore illégal */ }
       }
+      // Amélioration : si le champ est plein, l'IA remplace sa plus faible unité par une
+      // meilleure carte jouable de sa main (placement par-dessus).
+      let up = 0;
+      while (state.players[side].field.length >= engine.RULES.FIELD_SIZE && up++ < 3) {
+        const maxG = state.players[side].turnCount - 1;
+        const playable = state.players[side].hand.filter((c) => c.grade <= maxG);
+        if (!playable.length) break;
+        const best = playable.reduce((a, b) => (b.power > a.power ? b : a));
+        const weakest = state.players[side].field.reduce((a, b) => (b.power < a.power ? b : a));
+        if (best.power <= weakest.power) break; // aucune amélioration possible
+        try { engine.deploy(state, side, [best.iid], weakest.iid); } catch { break; }
+      }
       entry.aiPlan = { turn: state.turn, attacks: [...(plan.attacks || [])] };
       if (onStep) await onStep();
       continue;
@@ -220,8 +246,11 @@ export async function advanceAI(gameId, onStep) {
     }
 
     if (attackerIid) {
-      engine.declareAttack(state, side, attackerIid);
-      if (onStep) await onStep();
+      // Défensif : une attaque illégale (ex. 1er tour du joueur qui commence) est ignorée.
+      try {
+        engine.declareAttack(state, side, attackerIid);
+        if (onStep) await onStep();
+      } catch { /* coup ignoré */ }
       // La résolution de la garde se fait à l'itération suivante (IA) ou attend l'humain.
       continue;
     }
@@ -268,7 +297,23 @@ async function persistEnd(entry) {
   } catch (e) { console.error('[persistEnd]', e.message); }
 }
 
+// Abandon : le camp qui abandonne perd, l'adversaire gagne. Persiste la fin.
+export async function forfeit(gameId, side) {
+  const entry = games.get(gameId);
+  if (!entry) return null;
+  const { state } = entry;
+  if (state.status === 'playing') {
+    state.status = 'finished';
+    state.winner = engine.opponentOf(side);
+    state.pendingAttack = null;
+    state.log.push({ turn: state.turn, type: 'end', message: `${state.players[side].name} abandonne la partie.` });
+    await persistEnd(entry);
+  }
+  return state;
+}
+
 // Libère la mémoire (parties terminées / abandonnées).
 export function dispose(gameId) {
   games.delete(gameId);
+  locks.delete(gameId);
 }

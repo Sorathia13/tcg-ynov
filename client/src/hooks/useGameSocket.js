@@ -51,6 +51,15 @@ export function useGameSocket() {
       setPhase('idle');
       setInfo(null);
     });
+    // Retour propre au salon (après un abandon).
+    socket.on('game:left', () => {
+      setPhase('idle');
+      setView(null);
+      setGameId(null);
+      setResult(null);
+      setError(null);
+      setInfo(null);
+    });
     socket.on('game:opponentLeft', () => {
       setInfo('Votre adversaire a quitté la partie.');
     });
@@ -87,6 +96,10 @@ export function useGameSocket() {
     socketRef.current?.emit('queue:leave');
   }, []);
 
+  const forfeit = useCallback(() => {
+    if (socketRef.current && gameId != null) socketRef.current.emit('game:forfeit', { gameId });
+  }, [gameId]);
+
   const sendAction = useCallback((action) => {
     if (!socketRef.current || gameId == null) return;
     socketRef.current.emit('game:action', { gameId, action });
@@ -94,7 +107,7 @@ export function useGameSocket() {
 
   // Raccourcis d'action de jeu.
   const actions = {
-    deploy: (iids) => sendAction({ type: 'deploy', iids }),
+    deploy: (iids, replaceIid = null) => sendAction({ type: 'deploy', iids, replaceIid }),
     attack: (attackerIid) => sendAction({ type: 'attack', attackerIid }),
     guard: (guardIids) => sendAction({ type: 'guard', guardIids }),
     endTurn: () => sendAction({ type: 'endTurn' }),
@@ -109,5 +122,5 @@ export function useGameSocket() {
     setInfo(null);
   }, []);
 
-  return { phase, view, gameId, error, info, result, startVsAI, joinQueue, leaveQueue, actions, reset };
+  return { phase, view, gameId, error, info, result, startVsAI, joinQueue, leaveQueue, forfeit, actions, reset };
 }

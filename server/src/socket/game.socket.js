@@ -83,7 +83,8 @@ export function registerGameSocket(io) {
         registerSocket(gameId, 'A', socket); // l'humain est toujours le camp A
         socket.emit('game:started', { gameId, mode: 'ai' });
         broadcast(gameId);
-        await runAIIfNeeded(gameId, io); // no-op au 1er tour (l'humain commence)
+        // no-op au 1er tour (l'humain commence), mais passe par le verrou par cohérence
+        await manager.runExclusive(gameId, () => runAIIfNeeded(gameId, io));
       } catch (err) {
         socket.emit('game:error', { message: err.message });
       }
@@ -117,21 +118,47 @@ export function registerGameSocket(io) {
       socket.emit('queue:left', {});
     });
 
-    // --- Action de jeu ---
-    socket.on('game:action', async ({ gameId, action }) => {
-      try {
-        gameId = Number(gameId);
-        const side = manager.sideOf(gameId, user.id);
-        if (!side) throw new Error('Vous ne participez pas à cette partie.');
+    // --- Abandon de partie ---
+    socket.on('game:forfeit', async ({ gameId }) => {
+      gameId = Number(gameId);
+      const side = manager.sideOf(gameId, user.id);
+      if (!side) { socket.emit('game:left', {}); return; }
 
-        await manager.applyHumanAction(gameId, side, action);
-        broadcast(gameId);
-        await runAIIfNeeded(gameId, io);
+      await manager.runExclusive(gameId, async () => {
+        await manager.forfeit(gameId, side);
+        // Prévient l'adversaire humain (PvP) qu'il gagne par abandon.
+        const r = rooms.get(gameId) || {};
+        const opp = side === 'A' ? 'B' : 'A';
+        if (r[opp]) {
+          r[opp].emit('game:state', manager.viewFor(gameId, opp));
+          r[opp].emit('game:over', { winner: manager.get(gameId)?.state.winner, youWon: true, reason: 'forfeit' });
+        }
+      });
+      // L'abandonneur revient proprement au salon.
+      socket.emit('game:left', {});
+      manager.dispose(gameId);
+    });
+
+    // --- Action de jeu ---
+    // Tout le cycle (action humaine → diffusion → tour IA) s'exécute sous verrou
+    // exclusif par partie : aucune interleaving possible avec le tour asynchrone de l'IA.
+    socket.on('game:action', async ({ gameId, action }) => {
+      gameId = Number(gameId);
+      const side = manager.sideOf(gameId, user.id);
+      if (!side) {
+        socket.emit('game:error', { message: 'Vous ne participez pas à cette partie.' });
+        return;
+      }
+      try {
+        await manager.runExclusive(gameId, async () => {
+          await manager.applyHumanAction(gameId, side, action);
+          broadcast(gameId);
+          await runAIIfNeeded(gameId, io);
+        });
       } catch (err) {
-        const isGameError = err.isGameError;
-        socket.emit('game:error', { message: err.message, recoverable: !!isGameError });
-        // On renvoie l'état courant pour resynchroniser le client après un coup refusé.
-        if (socket.data.gameId) broadcast(socket.data.gameId);
+        socket.emit('game:error', { message: err.message, recoverable: !!err.isGameError });
+        // Resynchronise le client après un coup refusé.
+        broadcast(gameId);
       }
     });
 

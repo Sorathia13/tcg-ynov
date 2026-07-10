@@ -1,7 +1,9 @@
 // Plateau de bataille : affiche l'état de la partie et gère les interactions
 // (déploiement, attaque, garde) selon les coups légaux fournis par le serveur.
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Card from './Card.jsx';
+
+const frSide = (s) => (s === 'pile' ? 'Pile' : 'Face');
 
 function LifeBar({ label, life, isAI }) {
   const pct = Math.max(0, Math.min(100, (life / 15) * 100));
@@ -17,6 +19,18 @@ function LifeBar({ label, life, isAI }) {
 export default function Board({ game }) {
   const { view, actions, result, reset, error } = game;
   const [guardSel, setGuardSel] = useState([]);
+  const [replacing, setReplacing] = useState(null); // iid de la carte en attente de placement (champ plein)
+
+  // Lancer de pièce animé, joué une seule fois au démarrage de chaque partie.
+  const [flipStage, setFlipStage] = useState('spinning'); // spinning | result | done
+  const gameId = view?.id;
+  useEffect(() => {
+    if (!view?.coin) return;
+    setFlipStage('spinning');
+    const t1 = setTimeout(() => setFlipStage('result'), 1600);
+    const t2 = setTimeout(() => setFlipStage('done'), 3400);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [gameId]);
 
   if (!view) return <p className="muted">Chargement de la partie…</p>;
 
@@ -37,8 +51,40 @@ export default function Board({ game }) {
   const finished = view.status === 'finished';
   const youWon = finished && view.winner === you.side;
 
+  const handleForfeit = () => {
+    if (confirm('Abandonner la partie et revenir au salon ?')) game.forfeit();
+  };
+
+  // Placement d'une unité : sur emplacement libre, ou par-dessus une unité si le champ est plein.
+  const replaceMode = replacing && yourTurn && !mustGuard;
+  const onHandDeploy = (c) => {
+    if (legal?.fieldFull) setReplacing((cur) => (cur === c.iid ? null : c.iid));
+    else actions.deploy([c.iid]);
+  };
+  const onFieldClick = (u) => {
+    if (replaceMode) { actions.deploy([replacing], u.iid); setReplacing(null); }
+    else if (yourTurn && attackers.has(u.iid)) actions.attack(u.iid);
+  };
+
   return (
     <section className="board">
+      {/* Lancer de pièce automatique au début de partie */}
+      {view.coin && flipStage !== 'done' && (
+        <div className="coin-overlay">
+          <div className={`coin ${flipStage === 'spinning' ? 'spinning' : `landed-${view.coin}`}`}>
+            {flipStage === 'spinning' ? '🪙' : frSide(view.coin)[0]}
+          </div>
+          {flipStage === 'spinning' ? (
+            <h2>Pile ou face…</h2>
+          ) : (
+            <>
+              <h2 className="coin-result">{frSide(view.coin)} !</h2>
+              <p className="coin-assign">{view.youStarted ? '🎉 Vous commencez' : `${view.opponent.name} commence`}</p>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Adversaire */}
       <div className="board-zone opponent">
         <div className="zone-header">
@@ -65,6 +111,19 @@ export default function Board({ game }) {
           )}
         </div>
 
+        {view.coin && (
+          <div className="coin-badge">
+            🪙 {view.coin === 'pile' ? 'Pile' : 'Face'} — {view.youStarted ? 'vous avez commencé' : `${view.opponent.name} a commencé`}
+          </div>
+        )}
+
+        {yourTurn && !finished && legal && (
+          <div className="turn-info">
+            Palier : <b>Grade {legal.maxGrade}</b> — vous pouvez déployer les grades 0 à {legal.maxGrade}
+            {legal.canAttack === false && <span className="no-attack"> · pas d'attaque à votre 1<sup>er</sup> tour</span>}
+          </div>
+        )}
+
         {view.pendingAttack && !finished && (
           <div className="attack-banner">
             Attaque : <b>{view.pendingAttack.name}</b> — puissance {view.pendingAttack.power}, critique {view.pendingAttack.critical}
@@ -75,24 +134,42 @@ export default function Board({ game }) {
           {view.log.slice(-6).map((l, i) => <li key={i} className={`log-${l.type}`}>{l.message}</li>)}
         </ul>
         {error && <p className="error small">{error}</p>}
+        {!finished && (
+          <button className="btn ghost danger small-btn" onClick={handleForfeit}>🏳 Abandonner</button>
+        )}
       </div>
 
       {/* Vous */}
       <div className="board-zone you">
+        {replaceMode && (
+          <div className="attack-banner">
+            ♻ Cliquez l'une de vos unités pour la remplacer (elle sera retirée).
+            <button className="btn ghost small-btn" onClick={() => setReplacing(null)}>Annuler</button>
+          </div>
+        )}
         <div className="field">
           {you.field.length === 0 && <span className="empty-field">— déployez des unités depuis votre main —</span>}
-          {you.field.map((c) => (
-            <Card key={c.iid} card={c}
-              compact
-              onClick={yourTurn && attackers.has(c.iid) ? () => actions.attack(c.iid) : undefined}
-              disabled={!yourTurn || !attackers.has(c.iid)}
-              footer={yourTurn && attackers.has(c.iid) ? <span className="add-hint">⚔ Attaquer</span> : null}
-            />
-          ))}
+          {you.field.map((c) => {
+            const attackable = yourTurn && attackers.has(c.iid);
+            const clickable = replaceMode || attackable;
+            return (
+              <Card key={c.iid} card={c}
+                compact
+                onClick={clickable ? () => onFieldClick(c) : undefined}
+                disabled={!clickable}
+                footer={
+                  replaceMode ? <span className="add-hint">♻ Remplacer ici</span>
+                  : attackable ? <span className="add-hint">⚔ Attaquer</span>
+                  : null
+                }
+              />
+            );
+          })}
         </div>
 
         <div className="zone-header">
           <LifeBar label={you.name} life={you.life} />
+          <span className="hand-count">🂠 {you.hand.length} en main · deck {you.deckCount}</span>
         </div>
 
         {/* Main */}
@@ -105,16 +182,16 @@ export default function Board({ game }) {
               return (
                 <Card key={c.iid} card={c}
                   compact
-                  selected={guarding && guardSel.includes(c.iid)}
+                  selected={(guarding && guardSel.includes(c.iid)) || replacing === c.iid}
                   onClick={
                     guarding ? () => toggleGuard(c.iid)
-                    : canDeploy ? () => actions.deploy([c.iid])
+                    : canDeploy ? () => onHandDeploy(c)
                     : undefined
                   }
                   disabled={!guarding && !canDeploy}
                   footer={
                     guarding ? <span className="add-hint">🛡 {guardSel.includes(c.iid) ? 'Retirer' : 'Garder'}</span>
-                    : canDeploy ? <span className="add-hint">➕ Déployer</span>
+                    : canDeploy ? <span className="add-hint">{legal?.fieldFull ? '♻ Remplacer…' : '➕ Déployer'}</span>
                     : null
                   }
                 />

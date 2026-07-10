@@ -76,7 +76,20 @@ export function createGameState({ id, playerA, playerB, seed = 1 }) {
   state.players.A = makePlayer(playerA, playerA.deckCards, 'A', state);
   state.players.B = makePlayer(playerB, playerB.deckCards, 'B', state);
 
-  beginTurn(state, 'A');
+  // --- Pile ou face automatique pour désigner le premier joueur ---
+  // L'attribution pile/face à chaque joueur est aléatoire (en coulisses), puis on
+  // lance la pièce (aléatoire) : le joueur du côté tiré commence.
+  const aIsPile = nextRandom(state) < 0.5;
+  const coinSides = { A: aIsPile ? 'pile' : 'face', B: aIsPile ? 'face' : 'pile' };
+  state.coin = nextRandom(state) < 0.5 ? 'pile' : 'face';
+  state.starter = coinSides.A === state.coin ? 'A' : 'B';
+
+  state.log.push({
+    turn: 0, type: 'coin',
+    message: `🪙 ${state.coin === 'pile' ? 'Pile' : 'Face'} ! ${state.players[state.starter].name} commence.`,
+  });
+
+  beginTurn(state, state.starter);
   return state;
 }
 
@@ -92,10 +105,19 @@ function beginTurn(state, side) {
   state.activePlayer = side;
   for (const u of p.field) u.tapped = false;
 
-  if (p.deck.length > 0) {
-    const drawn = p.deck.shift();
-    p.hand.push(drawn);
-    pushLog(state, 'draw', `${p.name} pioche une carte (tour ${p.turnCount}).`);
+  // Le joueur qui commence en 2e pioche une carte supplémentaire, mais seulement
+  // à son tout premier tour (compensation du désavantage d'initiative).
+  const isSecondPlayerFirstTurn = side !== state.starter && p.turnCount === 1;
+  const drawCount = isSecondPlayerFirstTurn ? 2 : 1;
+
+  let drawn = 0;
+  for (let i = 0; i < drawCount && p.deck.length > 0; i++) {
+    p.hand.push(p.deck.shift());
+    drawn++;
+  }
+  if (drawn > 0) {
+    const bonus = isSecondPlayerFirstTurn ? ' (dont 1 bonus 2e joueur)' : '';
+    pushLog(state, 'draw', `${p.name} pioche ${drawn} carte${drawn > 1 ? 's' : ''}${bonus} (tour ${p.turnCount}).`);
   } else {
     pushLog(state, 'draw', `${p.name} n'a plus de cartes à piocher.`);
   }
@@ -109,7 +131,10 @@ export function maxDeployableGrade(player) {
 // --- Actions ----------------------------------------------------------------
 
 // Déploie des unités depuis la main vers le champ.
-export function deploy(state, side, iids) {
+// - sans replaceIid : ajoute sur les emplacements libres (champ non plein).
+// - avec replaceIid  : place UNE carte par-dessus une unité existante (retirée),
+//   ce qui permet de poser une unité même quand le champ est plein.
+export function deploy(state, side, iids, replaceIid = null) {
   assertPlaying(state);
   if (state.pendingAttack) throw gameError('Une attaque est en cours de résolution.');
   if (state.activePlayer !== side) throw gameError('Ce n\'est pas votre tour.');
@@ -118,11 +143,8 @@ export function deploy(state, side, iids) {
   const maxGrade = maxDeployableGrade(p);
   const list = Array.isArray(iids) ? iids : [iids];
 
-  if (p.field.length + list.length > RULES.FIELD_SIZE) {
-    throw gameError(`Champ plein (max ${RULES.FIELD_SIZE} unités).`);
-  }
-
-  for (const iid of list) {
+  // Helper : retire la carte de la main, valide le grade, renvoie la carte.
+  const takeFromHand = (iid) => {
     const idx = p.hand.findIndex((c) => c.iid === iid);
     if (idx === -1) throw gameError(`Carte absente de la main : ${iid}`);
     const card = p.hand[idx];
@@ -131,6 +153,27 @@ export function deploy(state, side, iids) {
     }
     p.hand.splice(idx, 1);
     card.tapped = false;
+    return card;
+  };
+
+  // --- Remplacement (placer par-dessus une unité) ---
+  if (replaceIid) {
+    if (list.length !== 1) throw gameError('Le remplacement ne concerne qu\'une seule carte.');
+    const slot = p.field.findIndex((u) => u.iid === replaceIid);
+    if (slot === -1) throw gameError('Unité à remplacer introuvable.');
+    const card = takeFromHand(list[0]);
+    const old = p.field[slot];
+    p.field[slot] = card; // l'ancienne unité est retirée du jeu
+    pushLog(state, 'deploy', `${p.name} place ${card.name} (${card.power}) par-dessus ${old.name} (retirée).`);
+    return state;
+  }
+
+  // --- Ajout sur emplacements libres ---
+  if (p.field.length + list.length > RULES.FIELD_SIZE) {
+    throw gameError(`Champ plein (max ${RULES.FIELD_SIZE} unités) : placez une unité par-dessus une autre.`);
+  }
+  for (const iid of list) {
+    const card = takeFromHand(iid);
     p.field.push(card);
     pushLog(state, 'deploy', `${p.name} déploie ${card.name} (${card.power}).`);
   }
@@ -144,6 +187,9 @@ export function declareAttack(state, side, attackerIid) {
   if (state.activePlayer !== side) throw gameError('Ce n\'est pas votre tour.');
 
   const p = state.players[side];
+  if (side === state.starter && p.turnCount === 1) {
+    throw gameError('Le joueur qui commence ne peut pas attaquer à son premier tour.');
+  }
   const unit = p.field.find((u) => u.iid === attackerIid);
   if (!unit) throw gameError('Unité attaquante introuvable sur le champ.');
   if (unit.tapped) throw gameError(`${unit.name} a déjà attaqué ce tour.`);
@@ -231,13 +277,18 @@ export function legalActions(state, side) {
   if (state.activePlayer !== side) return { canAct: false };
   const p = state.players[side];
   const maxGrade = maxDeployableGrade(p);
+  // Le joueur qui commence ne peut pas attaquer à son premier tour.
+  const canAttack = !(side === state.starter && p.turnCount === 1);
   return {
     canAct: true,
     mustGuard: false,
-    deployable: p.field.length < RULES.FIELD_SIZE
-      ? p.hand.filter((c) => c.grade <= maxGrade).map(cardBrief)
-      : [],
-    attackers: p.field.filter((u) => !u.tapped).map(cardBrief),
+    maxGrade,        // grade maximum déployable ce tour (= tour - 1)
+    turnCount: p.turnCount,
+    canAttack,
+    fieldFull: p.field.length >= RULES.FIELD_SIZE, // si plein, le déploiement remplace une unité
+    // Cartes jouables (grade ok). Reste disponible champ plein → placement par-dessus une unité.
+    deployable: p.hand.filter((c) => c.grade <= maxGrade).map(cardBrief),
+    attackers: canAttack ? p.field.filter((u) => !u.tapped).map(cardBrief) : [],
     canEndTurn: true,
   };
 }
@@ -275,6 +326,8 @@ export function publicView(state, viewer) {
     activePlayer: state.activePlayer,
     pendingAttack: state.pendingAttack,
     winner: state.winner,
+    coin: state.coin,
+    youStarted: state.starter === viewer,
     you: self,
     opponent,
     yourTurn: state.activePlayer === viewer && !state.pendingAttack,

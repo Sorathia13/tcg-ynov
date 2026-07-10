@@ -76,8 +76,9 @@ export async function decideTurn(view) {
     const deploySet = new Set(deployable.map((c) => c.iid));
     const deploy = uniq(asArray(out.deploy)).filter((iid) => deploySet.has(iid)).slice(0, Math.max(0, slots));
 
+    const canAttack = view.legal.canAttack !== false;
     const attackSet = new Set([...attackers.map((c) => c.iid), ...deploy]);
-    const attacks = uniq(asArray(out.attacks)).filter((iid) => attackSet.has(iid));
+    const attacks = canAttack ? uniq(asArray(out.attacks)).filter((iid) => attackSet.has(iid)) : [];
 
     // Si le LLM ne propose aucune action exploitable, on complète par l'heuristique.
     if (deploy.length === 0 && attacks.length === 0) return heuristicTurn(view);
@@ -130,10 +131,10 @@ function heuristicTurn(view) {
   const deployable = [...(view.legal.deployable || [])].sort((a, b) => b.power - a.power);
   const slots = FIELD_SIZE - view.you.field.length;
   const deploy = deployable.slice(0, Math.max(0, slots)).map((c) => c.iid);
-  const attacks = [
-    ...(view.legal.attackers || []).map((c) => c.iid),
-    ...deploy, // les unités déployées attaquent aussi
-  ];
+  const canAttack = view.legal.canAttack !== false;
+  const attacks = canAttack
+    ? [...(view.legal.attackers || []).map((c) => c.iid), ...deploy] // les unités déployées attaquent aussi
+    : [];
   return { deploy, attacks, source: 'heuristic' };
 }
 
