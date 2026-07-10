@@ -60,3 +60,18 @@ Content-Type: application/json
 ### Mon historique de parties (protégé)
 GET {{base}}/games
 Authorization: Bearer {{token}}
+
+### Créer une carte — RÉSERVÉ ADMIN (connecte-toi en alice@tcg.dev = admin)
+### Avec un token 'user' (bob) -> 403 ; avec un token 'admin' (alice) -> 201
+POST {{base}}/cards
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Dragon de Test",
+  "type": "Dragon",
+  "grade": 3,
+  "power": 13000,
+  "critical": 2,
+  "description": "Carte créée via l'API par un admin."
+}

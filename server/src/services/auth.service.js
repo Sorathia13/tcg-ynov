@@ -9,7 +9,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function signToken(user) {
   return jwt.sign(
-    { sub: user.id, pseudo: user.pseudo, email: user.email },
+    { sub: user.id, pseudo: user.pseudo, email: user.email, role: user.role },
     config.jwt.secret,
     { expiresIn: config.jwt.expiresIn },
   );
@@ -17,7 +17,7 @@ function signToken(user) {
 
 // Ne jamais renvoyer le hash du mot de passe au client.
 function publicUser(user) {
-  return { id: user.id, pseudo: user.pseudo, email: user.email, createdAt: user.createdAt };
+  return { id: user.id, pseudo: user.pseudo, email: user.email, role: user.role, createdAt: user.createdAt };
 }
 
 export async function register({ pseudo, email, password }) {

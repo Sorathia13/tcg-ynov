@@ -40,3 +40,22 @@ export async function getById(req, res, next) {
     res.json(card);
   } catch (err) { next(err); }
 }
+
+// POST /api/cards — création d'une carte (réservé aux admins).
+export async function create(req, res, next) {
+  try {
+    const { name, type, grade, power, critical, description } = req.body;
+    if (!name || !name.trim()) throw new ApiError(400, 'Le nom de la carte est requis');
+    const card = await prisma.card.create({
+      data: {
+        name: name.trim(),
+        type: type || null,
+        grade: Number(grade) || 0,
+        power: Number(power) || 0,
+        critical: Number(critical) || 1,
+        description: description || null,
+      },
+    });
+    res.status(201).json(card);
+  } catch (err) { next(err); }
+}

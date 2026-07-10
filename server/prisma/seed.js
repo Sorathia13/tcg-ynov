@@ -70,12 +70,12 @@ async function main() {
   // Utilisateurs
   const passwordHash = await bcrypt.hash('password123', 10);
   const alice = await prisma.user.create({
-    data: { pseudo: 'Alice', email: 'alice@tcg.dev', password: passwordHash },
+    data: { pseudo: 'Alice', email: 'alice@tcg.dev', password: passwordHash, role: 'admin' },
   });
   const bob = await prisma.user.create({
-    data: { pseudo: 'Bob', email: 'bob@tcg.dev', password: passwordHash },
+    data: { pseudo: 'Bob', email: 'bob@tcg.dev', password: passwordHash, role: 'user' },
   });
-  console.log('  ✓ 2 utilisateurs (alice@tcg.dev / bob@tcg.dev — password123)');
+  console.log('  ✓ 2 utilisateurs (alice=admin / bob=user — password123)');
 
   // Deck de départ : un bon échantillon sur tous les grades.
   const starter = [
