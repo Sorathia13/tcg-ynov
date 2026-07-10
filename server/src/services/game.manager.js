@@ -86,6 +86,9 @@ export async function createVsAI({ user, deckCards, seed }) {
     state,
     sides: { A: { userId: user.id, isAI: false }, B: { userId: aiUser.id, isAI: true } },
     aiPlan: null,
+    mode: 'ai',
+    startedAt: Date.now(),
+    aiStats: { ollama: 0, heuristic: 0 }, // compteur : origine des décisions de l'IA
   });
   return game.id;
 }
@@ -115,6 +118,9 @@ export async function createPvP(a, b, seed) {
     state,
     sides: { A: { userId: a.user.id, isAI: false }, B: { userId: b.user.id, isAI: false } },
     aiPlan: null,
+    mode: 'pvp',
+    startedAt: Date.now(),
+    aiStats: { ollama: 0, heuristic: 0 },
   });
   return game.id;
 }
@@ -191,6 +197,7 @@ export async function advanceAI(gameId, onStep) {
   const entry = games.get(gameId);
   if (!entry) return;
   const { state } = entry;
+  const tally = (src) => { if (src && entry.aiStats) entry.aiStats[src] = (entry.aiStats[src] || 0) + 1; };
 
   let guard = 0; // garde-fou anti-boucle infinie
   while (guard++ < 40) {
@@ -200,7 +207,8 @@ export async function advanceAI(gameId, onStep) {
     // --- Défense de l'IA ---
     if (state.pendingAttack) {
       const view = engine.publicView(state, side);
-      const { guardIids } = await ai.decideGuard(view);
+      const { guardIids, source } = await ai.decideGuard(view);
+      tally(source);
       engine.resolveGuard(state, side, guardIids);
       if (state.status === 'finished') await persistEnd(entry);
       if (onStep) await onStep();
@@ -212,6 +220,7 @@ export async function advanceAI(gameId, onStep) {
     if (!entry.aiPlan || entry.aiPlan.turn !== state.turn) {
       const view = engine.publicView(state, side);
       const plan = await ai.decideTurn(view);
+      tally(plan.source);
       // Déploiement (filtré/validé par le moteur, on ignore les coups illégaux).
       const deployable = new Set(view.legal.deployable?.map((c) => c.iid));
       const toDeploy = (plan.deploy || []).filter((iid) => deployable.has(iid))
@@ -286,6 +295,22 @@ async function persistTurn(entry, side) {
 
 async function persistEnd(entry) {
   const { state } = entry;
+
+  // Instrumentation playtest : une ligne de métriques exploitable par partie.
+  const aiTotal = (entry.aiStats?.ollama || 0) + (entry.aiStats?.heuristic || 0);
+  const metrics = {
+    gameId: state.id,
+    mode: entry.mode,
+    turns: state.turn,
+    durationSec: entry.startedAt ? Math.round((Date.now() - entry.startedAt) / 1000) : null,
+    winner: state.winner ? state.players[state.winner].name : null,
+    lifeA: state.players.A.life,
+    lifeB: state.players.B.life,
+    aiDecisions: entry.aiStats,
+    aiOllamaRate: aiTotal ? Math.round((entry.aiStats.ollama / aiTotal) * 100) + '%' : 'n/a',
+  };
+  console.log('[METRICS]', JSON.stringify(metrics));
+
   try {
     await prisma.game.update({ where: { id: state.id }, data: { status: 'finished' } });
     for (const s of SIDES) {

@@ -103,8 +103,8 @@ Moteur de jeu ──────────┘            ├──> Partie tem
 | Priorité | Tâche | Estimation | Statut |
 |---|---|---|---|
 | 1 | Finaliser tests + CI | ½ j | ✅ fait |
-| 2 | Instrumentation playtest (S1) : logs durée/tours + compteurs | ½ j | à faire |
-| 3 | Plan de playtest + grille d'observation (docs/PLAYTEST.md) | ½ j | en cours |
+| 2 | Instrumentation playtest (S1) : logs durée/tours + compteurs | ½ j | ✅ fait |
+| 3 | Plan de playtest + grille d'observation (docs/PLAYTEST.md) | ½ j | ✅ fait |
 | 4 | Passe de robustesse PvP (S2) + écran de fin (S3) | 1 j | à faire |
 | 5 | Support de démo (docs/DEMO.md) + répétition | ½ j | à faire |
 
@@ -124,7 +124,7 @@ Chaque item ci-dessous = une carte (préfixe = priorité MoSCoW) :
 - **[MUST] Auth + decks** → _Fait_
 - **[MUST] Tests moteur + CI** → _Fait_
 - **[MUST] UI jouable** → _Fait_
-- **[SHOULD] Instrumentation playtest (logs/compteurs)** → _À faire_
+- **[SHOULD] Instrumentation playtest (logs/compteurs)** → _Fait_
 - **[SHOULD] Robustesse PvP** → _À faire_
 - **[SHOULD] Écran de fin enrichi** → _À faire_
 - **[SHOULD] Reconnexion / abandon propre** → _En cours_ (abandon fait)
