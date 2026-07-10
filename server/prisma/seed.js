@@ -6,27 +6,29 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 // Catalogue de cartes — esprit Vanguard (grade / power / critical).
+// Puissance standardisée par grade : G0=6000, G1=8000, G2=10000, G3=13000.
+// Le "critical" (dégâts) reste l'élément différenciateur entre cartes d'un même grade.
 const CARDS = [
   // Grade 0 — petites unités, jouables dès le tour 1
-  { name: 'Apprenti Dragon', type: 'Dragon', grade: 0, power: 4000, critical: 1, description: 'Un jeune dragon plein de fougue.' },
-  { name: 'Éclaireur Elfe', type: 'Elfe', grade: 0, power: 3000, critical: 1, description: 'Rapide et discret.' },
-  { name: 'Gobelin Bouclier', type: 'Gobelin', grade: 0, power: 2000, critical: 1, description: 'Défensif, idéal pour garder.' },
-  { name: 'Fée Lumineuse', type: 'Fée', grade: 0, power: 3000, critical: 1, description: 'Émet une douce lumière.' },
+  { name: 'Apprenti Dragon', type: 'Dragon', grade: 0, power: 6000, critical: 1, description: 'Un jeune dragon plein de fougue.' },
+  { name: 'Éclaireur Elfe', type: 'Elfe', grade: 0, power: 6000, critical: 1, description: 'Rapide et discret.' },
+  { name: 'Gobelin Bouclier', type: 'Gobelin', grade: 0, power: 6000, critical: 1, description: 'Robuste, utile aussi en garde.' },
+  { name: 'Fée Lumineuse', type: 'Fée', grade: 0, power: 6000, critical: 1, description: 'Émet une douce lumière.' },
   // Grade 1
-  { name: 'Chevalier d\'Argent', type: 'Humain', grade: 1, power: 6000, critical: 1, description: 'Un défenseur loyal.' },
-  { name: 'Sorcière du Vent', type: 'Sorcier', grade: 1, power: 5000, critical: 1, description: 'Manipule les courants d\'air.' },
-  { name: 'Golem de Pierre', type: 'Golem', grade: 1, power: 7000, critical: 1, description: 'Lent mais robuste.' },
-  { name: 'Archer Sylvestre', type: 'Elfe', grade: 1, power: 5000, critical: 1, description: 'Tir précis à longue portée.' },
+  { name: 'Chevalier d\'Argent', type: 'Humain', grade: 1, power: 8000, critical: 1, description: 'Un défenseur loyal.' },
+  { name: 'Sorcière du Vent', type: 'Sorcier', grade: 1, power: 8000, critical: 1, description: 'Manipule les courants d\'air.' },
+  { name: 'Golem de Pierre', type: 'Golem', grade: 1, power: 8000, critical: 1, description: 'Lent mais robuste.' },
+  { name: 'Archer Sylvestre', type: 'Elfe', grade: 1, power: 8000, critical: 1, description: 'Tir précis à longue portée.' },
   // Grade 2
-  { name: 'Dragon de Flammes', type: 'Dragon', grade: 2, power: 9000, critical: 1, description: 'Crache un souffle ardent.' },
-  { name: 'Général Berserk', type: 'Humain', grade: 2, power: 8000, critical: 2, description: 'Frappe deux fois plus fort.' },
+  { name: 'Dragon de Flammes', type: 'Dragon', grade: 2, power: 10000, critical: 1, description: 'Crache un souffle ardent.' },
+  { name: 'Général Berserk', type: 'Humain', grade: 2, power: 10000, critical: 2, description: 'Frappe deux fois plus fort.' },
   { name: 'Léviathan des Mers', type: 'Bête', grade: 2, power: 10000, critical: 1, description: 'Surgit des abysses.' },
-  { name: 'Mage Suprême', type: 'Sorcier', grade: 2, power: 8000, critical: 1, description: 'Maîtrise les arcanes.' },
+  { name: 'Mage Suprême', type: 'Sorcier', grade: 2, power: 10000, critical: 1, description: 'Maîtrise les arcanes.' },
   // Grade 3 — finisseurs
-  { name: 'Dragon Empereur', type: 'Dragon', grade: 3, power: 11000, critical: 2, description: 'Le souverain des dragons.' },
+  { name: 'Dragon Empereur', type: 'Dragon', grade: 3, power: 13000, critical: 2, description: 'Le souverain des dragons.' },
   { name: 'Titan Colossal', type: 'Golem', grade: 3, power: 13000, critical: 1, description: 'Une force de la nature.' },
-  { name: 'Ange de l\'Apocalypse', type: 'Ange', grade: 3, power: 12000, critical: 2, description: 'Jugement dernier.' },
-  { name: 'Roi Démon', type: 'Démon', grade: 3, power: 10000, critical: 3, description: 'Frappe dévastatrice.' },
+  { name: 'Ange de l\'Apocalypse', type: 'Ange', grade: 3, power: 13000, critical: 2, description: 'Jugement dernier.' },
+  { name: 'Roi Démon', type: 'Démon', grade: 3, power: 13000, critical: 3, description: 'Frappe dévastatrice.' },
 ];
 
 // Quelques effets (table effects) — flavor / extension future.
