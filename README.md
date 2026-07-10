@@ -136,9 +136,13 @@ ollama pull llama3.2
 Configuration côté serveur (`server/.env`) :
 
 ```
-OLLAMA_URL=http://localhost:11434
+OLLAMA_URL=http://127.0.0.1:11434   # 127.0.0.1, pas "localhost" (cf. note ci-dessous)
 OLLAMA_MODEL=llama3.2
 ```
+
+> ⚠️ **Piège courant** : utilise bien `127.0.0.1` et non `localhost`. Le `fetch` de Node (undici)
+> résout `localhost` en IPv6 (`::1`), alors qu'Ollama n'écoute qu'en IPv4 → l'IA tomberait
+> silencieusement sur son repli heuristique (`fetch failed`) au lieu d'utiliser le LLM.
 
 ## Règles du jeu (TCG lite)
 
