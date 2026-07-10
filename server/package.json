@@ -13,7 +13,8 @@
     "db:studio": "prisma studio",
     "prisma:generate": "prisma generate",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "simulate": "node scripts/simulate.mjs"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
