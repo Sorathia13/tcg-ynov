@@ -77,10 +77,11 @@ export async function decideTurn(view) {
     const deploy = uniq(asArray(out.deploy)).filter((iid) => deploySet.has(iid)).slice(0, Math.max(0, slots));
 
     const canAttack = view.legal.canAttack !== false;
-    const attackSet = new Set([...attackers.map((c) => c.iid), ...deploy]);
-    const attacks = canAttack ? uniq(asArray(out.attacks)).filter((iid) => attackSet.has(iid)) : [];
+    // Attaquer avec TOUTES les unités disponibles est toujours optimal ici (pas de combat
+    // unité vs unité, pas de contre-attaque) : on ne laisse pas le LLM en oublier (ex. les G0).
+    const attacks = canAttack ? [...attackers.map((c) => c.iid), ...deploy] : [];
 
-    // Si le LLM ne propose aucune action exploitable, on complète par l'heuristique.
+    // Si aucune action exploitable, on complète par l'heuristique.
     if (deploy.length === 0 && attacks.length === 0) return heuristicTurn(view);
     return { deploy, attacks, source: 'ollama' };
   } catch (err) {
@@ -116,8 +117,13 @@ export async function decideGuard(view) {
   try {
     const out = await ollamaChatJSON(system, user);
     const handSet = new Set(hand.map((c) => c.iid));
-    const guardIids = uniq(asArray(out.guardIids)).filter((iid) => handSet.has(iid));
-    return { guardIids, source: 'ollama' };
+    // Le LLM décide S'IL FAUT défendre (au moins une carte de garde proposée) ;
+    // mais on choisit NOUS-MÊMES le minimum de cartes nécessaire, pour ne jamais
+    // sur-garder (ex. bloquer une attaque à 8000 avec 46000 de bouclier).
+    const wantsToGuard = uniq(asArray(out.guardIids)).some((iid) => handSet.has(iid));
+    if (!wantsToGuard) return { guardIids: [], source: 'ollama' };
+    const block = minimalGuard(hand, atk.power);
+    return { guardIids: block ? block.map((c) => c.iid) : [], source: 'ollama' };
   } catch (err) {
     console.warn('[AI] repli heuristique (garde) :', err.message);
     return heuristicGuard(view);
@@ -159,17 +165,24 @@ function heuristicGuard(view) {
   return { guardIids: [], source: 'heuristic' };
 }
 
-// Plus petit sous-ensemble de cartes dont la somme des power dépasse `power`.
+// Garde minimale : bloque juste ce qu'il faut, sans carte superflue.
+// 1) Si une seule carte suffit, prendre la PLUS PETITE qui dépasse (moins de gâchis).
+// 2) Sinon, combiner le moins de cartes possible (plus fortes d'abord) jusqu'à dépasser.
 function minimalGuard(hand, power) {
+  const single = hand
+    .filter((c) => c.power > power)
+    .sort((a, b) => a.power - b.power)[0];
+  if (single) return [single];
+
   const sorted = [...hand].sort((a, b) => b.power - a.power);
   const chosen = [];
   let sum = 0;
   for (const c of sorted) {
-    if (sum > power) break;
     chosen.push(c);
     sum += c.power;
+    if (sum > power) return chosen;
   }
-  return sum > power ? chosen : null;
+  return null; // impossible de bloquer avec la main disponible
 }
 
 // ---------------------------------------------------------------------------
